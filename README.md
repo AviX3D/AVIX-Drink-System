@@ -4,7 +4,7 @@ Application Windows native pour piloter une pompe de boisson depuis un volant de
 
 ---
 
-## 📥 Pour tes clients — Installer l'application
+## Installer l'application
 
 1. Va dans l'onglet **[Releases](../../releases)** de ce repo (à droite sur GitHub)
 2. Télécharge **AVIX Drink System.exe** de la dernière version
