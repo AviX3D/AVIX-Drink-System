@@ -41,7 +41,9 @@ git push
    ```python
    APP_VERSION = "3.0.1"   # ex: 3.0.0 -> 3.0.1
    ```
-2. Rebuild l'exe : double-clique **BUILD.bat** → le fichier est dans `dist\AVIX Drink System.exe`
+2. Deux choix pour builder :
+   - **`BUILD.bat`** → génère juste `dist\AVIX Drink System.exe` (le client double-clique dessus, pas d'installation)
+   - **`BUILD_MSI.bat`** → génère en plus un vrai installeur `AVIX_Drink_System_Setup.exe` (raccourci bureau + menu démarrer + désinstalleur propre). Nécessite [NSIS](https://nsis.sourceforge.io) installé une fois sur ton PC. **Recommandé pour tes clients.**
 3. Commit et tag :
    ```bash
    git add avix_drink.py

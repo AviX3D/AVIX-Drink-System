@@ -2,7 +2,7 @@
 ; Genere un installeur Windows professionnel
 
 !define APP_NAME "AVIX Drink System"
-!define APP_VERSION "2.0"
+!define APP_VERSION "3.0.0"
 !define APP_PUBLISHER "AVIX_3D"
 !define APP_URL "https://avix3d.com"
 !define EXE_NAME "AVIX Drink System.exe"

@@ -32,7 +32,7 @@ echo  (ignore pour Python - non necessaire)
 echo.
 
 echo  [3/3] Compilation du .exe...
-pyinstaller --onefile --windowed --name "AVIX Drink System" avix_drink.py
+pyinstaller --onefile --windowed --name "AVIX Drink System" --icon avix.ico --add-data "avix.ico;." avix_drink.py
 
 if not %errorlevel% == 0 (
     echo.

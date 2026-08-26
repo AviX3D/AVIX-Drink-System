@@ -18,7 +18,7 @@ ctk.set_default_color_theme("dark-blue")
 # ── VERSION / MISE A JOUR ──────────────────────────────────────────────────────
 APP_VERSION = "3.0.0"
 # ⚠️ Remplace par ton repo GitHub une fois créé (ex: "ton-pseudo/avix-drink-system")
-GITHUB_REPO = "AviX3D/AVIX-Drink-System"
+GITHUB_REPO = "TON_USERNAME/avix-drink-system"
 
 def _version_tuple(v):
     v = v.strip().lstrip("vV")
@@ -29,15 +29,15 @@ def _version_tuple(v):
     return tuple(parts)
 
 # ── PALETTE ───────────────────────────────────────────────────────────────────
-RED      = "#E8000F"
-RED_DRK  = "#A8000B"
-RED_DIM  = "#2A0003"
+RED      = "#C1C107"
+RED_DRK  = "#8C8C05"
+RED_DIM  = "#242401"
 BG       = "#0D0D0D"
 BG2      = "#141414"
 BG3      = "#1A1A1A"
 BG4      = "#202020"
 BORDER   = "#2E2E2E"
-BRED     = "#4A0008"
+BRED     = "#3A3A02"
 TEXT     = "#FFFFFF"
 TEXT2    = "#CCCCCC"
 MUTED    = "#888888"
