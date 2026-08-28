@@ -18,7 +18,7 @@ ctk.set_default_color_theme("dark-blue")
 # ── VERSION / MISE A JOUR ──────────────────────────────────────────────────────
 APP_VERSION = "3.0.0"
 # ⚠️ Remplace par ton repo GitHub une fois créé (ex: "ton-pseudo/avix-drink-system")
-GITHUB_REPO = "TON_USERNAME/avix-drink-system"
+GITHUB_REPO = "AviX3D/AVIX-Drink-System"
 
 def _version_tuple(v):
     v = v.strip().lstrip("vV")

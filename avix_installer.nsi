@@ -21,6 +21,17 @@ Page instfiles
 UninstPage uninstConfirm
 UninstPage instfiles
 
+; Ferme l'appli si elle tourne (fenetre ou reduite dans le tray), meme processus
+; Detecte une version deja installee et la supprime automatiquement
+Function .onInit
+  ExecWait 'taskkill /F /IM "${EXE_NAME}" /T'
+  Sleep 500
+  ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AVIXDrinkSystem" "UninstallString"
+  StrCmp $R0 "" done
+  ExecWait '"$R0" /S _?=$INSTDIR'
+  done:
+FunctionEnd
+
 Section "AVIX Drink System (requis)"
   SectionIn RO
   SetOutPath "$INSTDIR"
@@ -49,6 +60,8 @@ Section "AVIX Drink System (requis)"
 SectionEnd
 
 Section "Uninstall"
+  ExecWait 'taskkill /F /IM "${EXE_NAME}" /T'
+  Sleep 500
   Delete "$INSTDIR\${EXE_NAME}"
   Delete "$INSTDIR\uninstall.exe"
   RMDir "$INSTDIR"
