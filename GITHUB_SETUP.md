@@ -35,32 +35,12 @@ git commit -m "Config repo pour les maj auto"
 git push
 ```
 
-## 4. Publier une nouvelle version (à chaque mise à jour)
+## 4. Publier une nouvelle version
 
-1. Dans `avix_drink.py`, monte le numéro de version :
-   ```python
-   APP_VERSION = "3.0.1"   # ex: 3.0.0 -> 3.0.1
-   ```
-2. Deux choix pour builder :
-   - **`BUILD.bat`** → génère juste `dist\AVIX Drink System.exe` (le client double-clique dessus, pas d'installation)
-   - **`BUILD_MSI.bat`** → génère en plus un vrai installeur `AVIX_Drink_System_Setup.exe` (raccourci bureau + menu démarrer + désinstalleur propre). Nécessite [NSIS](https://nsis.sourceforge.io) installé une fois sur ton PC. **Recommandé pour tes clients.**
-3. Commit et tag :
-   ```bash
-   git add avix_drink.py
-   git commit -m "v3.0.1"
-   git tag v3.0.1
-   git push && git push --tags
-   ```
-4. Sur GitHub → onglet **Releases** → **Draft a new release**
-   - Choisis le tag `v3.0.1`
-   - Titre : `v3.0.1`
-   - Glisse `dist\AVIX Drink System.exe` dans la zone de fichiers
-   - **Publish release**
+1. Dans `avix_drink.py`, monte `APP_VERSION` (ex. `"4.0.1"`) et ajoute une section en haut de `CHANGELOG.md`. Mets ça sur `main`.
+2. Sur GitHub, va dans **Releases**, puis **Draft a new release**. Tape l'étiquette `v4.0.1` (« Create new tag »), cible `main`, écris les notes, puis clique sur **Publish release**.
+3. GitHub Actions (`.github/workflows/release.yml`) compile le `.exe` sous Windows et l'ajoute tout seul à la release (`AVIX_Drink_System.exe`). Ça prend environ 5 minutes ; tu peux suivre l'avancement dans l'onglet **Actions**.
 
-C'est tout. Le tag GitHub (`v3.0.1`) doit toujours correspondre à `APP_VERSION` dans le code — c'est ce que l'appli compare pour savoir si une maj existe.
-
-## Comment ça marche côté client
-
-À chaque lancement, l'appli interroge en silence l'API GitHub (`/releases/latest`) pour connaître la dernière version publiée. Si elle est plus récente que celle installée, un bouton orange **"⭱ Mise à jour vX.X.X"** apparaît dans le menu de gauche ; un clic ouvre la page de téléchargement dans le navigateur. Aucune installation forcée — le client garde la main.
-
-Pas de connexion internet ou repo pas encore public → l'appli ne fait rien de spécial, elle continue normalement.
+Pour ajouter le `.exe` à une release déjà publiée : onglet **Actions**, puis **Release Windows**, puis **Run workflow**, en indiquant l'étiquette.
+Mets toujours l'étiquette sous la forme `vX.Y.Z`, avec le même numéro que `APP_VERSION` : c'est ce que l'appli compare pour afficher la bannière de mise à jour.
+GitHub ajoute toujours tout seul les archives « Source code » à une release : on ne peut pas les retirer, mais tes clients n'ont besoin que du `.exe`.
