@@ -35,16 +35,12 @@ git commit -m "Config repo pour les maj auto"
 git push
 ```
 
-## 4. Publier une nouvelle version (automatique)
+## 4. Publier une nouvelle version
 
-1. Dans `avix_drink.py`, monte `APP_VERSION` (ex. `"4.0.1"`) et ajoute une section `## v4.0.1` en haut de `CHANGELOG.md`.
-2. Commit, puis crée et pousse l'étiquette :
-   ```bash
-   git commit -am "v4.0.1"
-   git tag v4.0.1
-   git push && git push --tags
-   ```
-3. GitHub Actions (`.github/workflows/release.yml`) compile le `.exe` sous Windows et publie la release avec **uniquement** `AVIX_Drink_System.exe` en pièce jointe, plus les notes tirées du CHANGELOG. Ça prend environ 5 minutes ; tu peux suivre l'avancement dans l'onglet **Actions**.
+1. Dans `avix_drink.py`, monte `APP_VERSION` (ex. `"4.0.1"`) et ajoute une section en haut de `CHANGELOG.md`. Mets ça sur `main`.
+2. Sur GitHub, va dans **Releases**, puis **Draft a new release**. Tape l'étiquette `v4.0.1` (« Create new tag »), cible `main`, écris les notes, puis clique sur **Publish release**.
+3. GitHub Actions (`.github/workflows/release.yml`) compile le `.exe` sous Windows et l'ajoute tout seul à la release (`AVIX_Drink_System.exe`). Ça prend environ 5 minutes ; tu peux suivre l'avancement dans l'onglet **Actions**.
 
-L'étiquette doit correspondre à `APP_VERSION` (sinon la compilation s'arrête volontairement). C'est ce que l'appli compare pour afficher la bannière de mise à jour chez tes clients.
-GitHub ajoute toujours tout seul les archives « Source code (zip / tar.gz ») » sur une release : on ne peut pas les retirer, mais tes clients n'ont besoin que du `.exe`.
+Pour ajouter le `.exe` à une release déjà publiée : onglet **Actions**, puis **Release Windows**, puis **Run workflow**, en indiquant l'étiquette.
+Mets toujours l'étiquette sous la forme `vX.Y.Z`, avec le même numéro que `APP_VERSION` : c'est ce que l'appli compare pour afficher la bannière de mise à jour.
+GitHub ajoute toujours tout seul les archives « Source code » à une release : on ne peut pas les retirer, mais tes clients n'ont besoin que du `.exe`.
