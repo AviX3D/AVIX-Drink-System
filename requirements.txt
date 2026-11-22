@@ -1,0 +1,6 @@
+customtkinter==5.2.2
+pyserial==3.5
+pygame==2.6.1
+keyboard==0.13.5
+pystray==0.19.5
+pillow==10.4.0
