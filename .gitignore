@@ -1,0 +1,16 @@
+# Build & dist locaux (PyInstaller) — jamais commités
+build/
+dist/
+*.spec.bak
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environnements
+venv/
+.venv/
+
+# Paramètres locaux
+*.log
