@@ -1,0 +1,65 @@
+# Compile l'appli Windows et publie une release ne contenant que le .exe.
+# Déclenché en poussant une étiquette vX.Y.Z (doit correspondre à APP_VERSION dans avix_drink.py).
+name: Release Windows
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Vérifie que l'étiquette correspond à APP_VERSION
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path avix_drink.py -Pattern 'APP_VERSION = "(.+)"').Matches[0].Groups[1].Value
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Etiquette ${{ github.ref_name }} != APP_VERSION v$v" }
+
+      - name: Compilation du .exe
+        run: pyinstaller --noconfirm "AVIX Drink System.spec"
+
+      - name: Renomme le .exe
+        shell: pwsh
+        run: Move-Item "dist/AVIX Drink System.exe" "dist/AVIX_Drink_System.exe"
+
+      - name: Notes de version (depuis CHANGELOG.md)
+        shell: pwsh
+        run: |
+          $lines = Get-Content CHANGELOG.md -Encoding UTF8
+          $out = @(); $in = $false
+          foreach ($l in $lines) {
+            if ($l -match '^## ') { if ($in) { break }; if ($l -match [regex]::Escape("${{ github.ref_name }}")) { $in = $true; continue } }
+            if ($in) { $out += $l }
+          }
+          $intro = "Télécharge **AVIX_Drink_System.exe** ci-dessous et lance-le : rien d'autre à installer.`n`nSi Windows SmartScreen affiche « Windows a protégé votre ordinateur », clique sur **Informations complémentaires** puis **Exécuter quand même**.`n`n## Nouveautés"
+          ($intro + "`n" + ($out -join "`n")) | Out-File notes.md -Encoding utf8
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AVIX_Drink_System
+          path: dist/AVIX_Drink_System.exe
+
+      - name: Publie la release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: AVIX Drink System ${{ github.ref_name }}
+          body_path: notes.md
+          files: dist/AVIX_Drink_System.exe

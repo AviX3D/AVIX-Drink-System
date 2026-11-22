@@ -35,32 +35,16 @@ git commit -m "Config repo pour les maj auto"
 git push
 ```
 
-## 4. Publier une nouvelle version (à chaque mise à jour)
+## 4. Publier une nouvelle version (automatique)
 
-1. Dans `avix_drink.py`, monte le numéro de version :
-   ```python
-   APP_VERSION = "3.0.1"   # ex: 3.0.0 -> 3.0.1
-   ```
-2. Deux choix pour builder :
-   - **`BUILD.bat`** → génère juste `dist\AVIX Drink System.exe` (le client double-clique dessus, pas d'installation)
-   - **`BUILD_MSI.bat`** → génère en plus un vrai installeur `AVIX_Drink_System_Setup.exe` (raccourci bureau + menu démarrer + désinstalleur propre). Nécessite [NSIS](https://nsis.sourceforge.io) installé une fois sur ton PC. **Recommandé pour tes clients.**
-3. Commit et tag :
+1. Dans `avix_drink.py`, monte `APP_VERSION` (ex. `"4.0.1"`) et ajoute une section `## v4.0.1` en haut de `CHANGELOG.md`.
+2. Commit, puis crée et pousse l'étiquette :
    ```bash
-   git add avix_drink.py
-   git commit -m "v3.0.1"
-   git tag v3.0.1
+   git commit -am "v4.0.1"
+   git tag v4.0.1
    git push && git push --tags
    ```
-4. Sur GitHub → onglet **Releases** → **Draft a new release**
-   - Choisis le tag `v3.0.1`
-   - Titre : `v3.0.1`
-   - Glisse `dist\AVIX Drink System.exe` dans la zone de fichiers
-   - **Publish release**
+3. GitHub Actions (`.github/workflows/release.yml`) compile le `.exe` sous Windows et publie la release avec **uniquement** `AVIX_Drink_System.exe` en pièce jointe, plus les notes tirées du CHANGELOG. Ça prend environ 5 minutes ; tu peux suivre l'avancement dans l'onglet **Actions**.
 
-C'est tout. Le tag GitHub (`v3.0.1`) doit toujours correspondre à `APP_VERSION` dans le code — c'est ce que l'appli compare pour savoir si une maj existe.
-
-## Comment ça marche côté client
-
-À chaque lancement, l'appli interroge en silence l'API GitHub (`/releases/latest`) pour connaître la dernière version publiée. Si elle est plus récente que celle installée, un bouton orange **"⭱ Mise à jour vX.X.X"** apparaît dans le menu de gauche ; un clic ouvre la page de téléchargement dans le navigateur. Aucune installation forcée — le client garde la main.
-
-Pas de connexion internet ou repo pas encore public → l'appli ne fait rien de spécial, elle continue normalement.
+L'étiquette doit correspondre à `APP_VERSION` (sinon la compilation s'arrête volontairement). C'est ce que l'appli compare pour afficher la bannière de mise à jour chez tes clients.
+GitHub ajoute toujours tout seul les archives « Source code (zip / tar.gz ») » sur une release : on ne peut pas les retirer, mais tes clients n'ont besoin que du `.exe`.
