@@ -1,12 +1,15 @@
 /*
-  AVIX Drink System — firmware V2 (Arduino Nano)
+  AVIX Drink System — firmware V2.1 (Arduino Nano)
   AVIX 3D — avix3d.com
 
   Pompe péristaltique via L298N mini + bouton du capot + LED WS2812B (capot V2).
   Compatible avec l'appli Windows "AVIX Drink System" (115200 bauds) :
     '1' = pompe ON   '0' = pompe OFF   '2' = pompe inversée (purge)
   Commandes texte (Moniteur série, fin de ligne "Nouvelle ligne") :
-    ON:200  OFF  REV:200  SPD:150  PING  STATUS
+    ON:200  OFF  REV:200  SPD:150  INV:1  PING  STATUS
+  INV:1 / INV:0 : sens inversé (moteur câblé à l'envers), gardé en mémoire (EEPROM).
+    Il s'applique au bouton du capot et à la couleur de la LED. '1' et '2' restent
+    des sens moteur absolus : c'est l'appli qui choisit lequel envoie vers la tétine.
 
   Bibliothèque à installer : Adafruit NeoPixel (Gestionnaire de bibliothèques).
   Carte : Arduino Nano (ATmega328P). Pour un clone CH340 : processeur
@@ -14,6 +17,7 @@
 */
 
 #include <Adafruit_NeoPixel.h>
+#include <EEPROM.h>
 
 // ---------------- CONFIG ----------------
 // Capot V2 avec bouton + LED : laisser à 1.  Capot V2 simple : mettre les deux à 0.
@@ -38,16 +42,22 @@ PumpState pumpState = PUMP_OFF;
 uint32_t  pumpStartMs = 0;
 uint32_t  faultUntilMs = 0;            // clignotement rouge après coupure de sécurité
 bool      buttonHeld = false;          // la pompe tourne parce que le bouton du capot est appuyé
+bool      invertDir = false;           // sens inversé (INV:1), mémorisé en EEPROM
+const int EE_INV = 0;                  // octet EEPROM : 0xA1 = inversé, autre valeur = normal
+
+PumpState drinkState() { return invertDir ? PUMP_REV : PUMP_ON; }   // sens "vers la tétine"
 
 Adafruit_NeoPixel led(1, PIN_LED, NEO_GRB + NEO_KHZ800);
 
 // ---------- pompe ----------
 void pumpApply() {
+  // vitesse réglée pour boire, pleine vitesse pour purger (quel que soit le sens moteur)
+  uint8_t spd = (pumpState == drinkState()) ? pumpSpeed : PURGE_SPEED;
   switch (pumpState) {
-    case PUMP_ON:  analogWrite(PIN_IN1, pumpSpeed);   digitalWrite(PIN_IN2, LOW);  break;
+    case PUMP_ON:  analogWrite(PIN_IN1, spd);   digitalWrite(PIN_IN2, LOW);  break;
     case PUMP_REV:                                   // IN2 n'est pas PWM : IN2 haut + PWM inversé sur IN1
       digitalWrite(PIN_IN2, HIGH);
-      if (PURGE_SPEED >= 255) digitalWrite(PIN_IN1, LOW); else analogWrite(PIN_IN1, 255 - PURGE_SPEED);
+      if (spd >= 255) digitalWrite(PIN_IN1, LOW); else analogWrite(PIN_IN1, 255 - spd);
       break;
     default:       digitalWrite(PIN_IN1, LOW);        digitalWrite(PIN_IN2, LOW);  break;
   }
@@ -82,9 +92,9 @@ void ledUpdate() {
   if ((int32_t)(faultUntilMs - now) > 0) {             // défaut : rouge clignotant
     bool on = (now / 150) % 2;
     ledColor(on ? LED_BRIGHT : 0, 0, 0);
-  } else if (pumpState == PUMP_ON) {
+  } else if (pumpState == drinkState()) {
     ledColor(0, LED_BRIGHT, 0);                         // vert : ça coule
-  } else if (pumpState == PUMP_REV) {
+  } else if (pumpState != PUMP_OFF) {
     ledColor(0, LED_BRIGHT / 2, LED_BRIGHT);            // cyan : purge
   } else {                                              // repos : jaune AVIX qui respire
     uint16_t t = (now / 8) % 512;
@@ -116,7 +126,7 @@ void buttonUpdate() {
   stable = r;
   if (stable == LOW) {                       // appui : la pompe tourne tant qu'on maintient
     Serial.println(F("BTN:1"));
-    if (pumpState == PUMP_OFF) { buttonHeld = true; pumpSet(PUMP_ON, "bouton"); }
+    if (pumpState == PUMP_OFF) { buttonHeld = true; pumpSet(drinkState(), "bouton"); }
   } else {                                   // relâché
     Serial.println(F("BTN:0"));
     if (buttonHeld) { buttonHeld = false; pumpSet(PUMP_OFF, "bouton"); }
@@ -138,10 +148,20 @@ void handleLine(char *s) {
   }
   else if (!strncmp(s, "REV", 3)) { buttonHeld = false; pumpSet(PUMP_REV, "serie"); }
   else if (!strncmp(s, "SPD:", 4)) { pumpSpeed = constrain(atoi(s + 4), 0, 255); pumpApply(); Serial.println(F("OK:SPD")); }
+  else if (!strncmp(s, "INV:", 4)) {
+    bool v = atoi(s + 4) != 0;
+    if (v != invertDir) {
+      if (buttonHeld) { buttonHeld = false; pumpSet(PUMP_OFF, "serie"); }   // jamais de changement de sens en marche
+      invertDir = v;
+      EEPROM.update(EE_INV, v ? 0xA1 : 0x00);
+    }
+    Serial.print(F("OK:INV:")); Serial.println(invertDir ? 1 : 0);
+  }
   else if (!strcmp(s, "PING")) Serial.println(F("PONG"));
   else if (!strcmp(s, "STATUS")) {
     Serial.print(F("STATUS pompe=")); Serial.print(pumpState);
-    Serial.print(F(" vitesse=")); Serial.println(pumpSpeed);
+    Serial.print(F(" vitesse=")); Serial.print(pumpSpeed);
+    Serial.print(F(" inverse=")); Serial.println(invertDir ? 1 : 0);
   }
   else if (*s) { Serial.print(F("ERR:")); Serial.println(s); }
 }
@@ -179,9 +199,10 @@ void setup() {
 #if HAS_BUTTON
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 #endif
+  invertDir = EEPROM.read(EE_INV) == 0xA1;   // EEPROM vierge (0xFF) = sens normal
   Serial.begin(BAUD);
   ledBoot();
-  Serial.println(F("=== AVIX DRINK SYSTEM V2 - pret ==="));
+  Serial.println(F("=== AVIX DRINK SYSTEM V2.1 - pret ==="));
 }
 
 void loop() {

@@ -11,6 +11,7 @@ class FakeBox:
         self.rx = b""
         self.alive = True
         self.cmds = []
+        self.fw21 = True                # firmware V2.1 : comprend INV:x
         threading.Thread(target=self._run, daemon=True).start()
 
     def w(self, s):
@@ -44,6 +45,9 @@ class FakeBox:
                 if l == "PING":
                     pinged = True
                     if self.mode == "v2": self.w("PONG\r\n")
+                elif l.startswith("INV:") and self.mode == "v2":
+                    self.cmds.append(l)
+                    self.w(("OK:" if self.fw21 else "ERR:") + l + "\r\n")
                 elif l.startswith("SPD:"):
                     self.cmds.append(l)
                     if self.mode == "v2": self.w("OK:SPD\r\n")

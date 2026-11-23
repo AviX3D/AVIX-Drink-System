@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.1.0
+- **Inverser le sens de la pompe** : interrupteur dans l'onglet *Pompe*, pour un moteur câblé à l'envers. Doses, amorçage, calibration et purge suivent le nouveau sens. Changer de sens arrête d'abord la pompe.
+- Firmware **V2.1** : commande `INV:1/0` mémorisée dans la box. Le bouton du capot tourne dans le bon sens, la LED reste verte quand ça coule, et le débit réglé s'applique quel que soit le sens.
+- Avec un firmware V2.0 ou plus ancien, l'appli inverse quand même et prévient que le bouton du capot garde l'ancien sens.
+- Le tuto indique quoi faire si la boisson repart vers la canette.
+
 ## v4.0.0
 - Logo AVIX et polices dans le style du logo (Barlow Condensed extra-grasse italique, embarquée).
 - Interface entièrement refaite : tableau de bord clair, gros STOP toujours visible.
