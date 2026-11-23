@@ -26,6 +26,7 @@ L'appli te prévient quand une nouvelle version sort.
 | **Bouton du capot** | Il marche toujours, sans réglage. L'appli affiche quand il est utilisé. |
 | **2 modes** | *Une dose par appui* (durée réglable de 0,5 à 15 s) ou *Tant que j'appuie* (20 s maximum). |
 | **Débit réglable** | Avec le firmware V2. |
+| **Inverser le sens** | Un interrupteur dans *Pompe* si le moteur est câblé à l'envers (la boisson repart vers la canette). Avec le firmware V2.1, le bouton du capot suit aussi. |
 | **Amorcer / Purger** | Amorcer : la pompe tourne tant que tu maintiens le bouton, pour remplir le tuyau. Purger : 3 s à l'envers pour renvoyer la boisson dans la canette. |
 | **Hydratation** | Calibration en ml, compteur de la session et du jour, rappel « pense à boire » toutes les 10 à 30 min. |
 | **STOP** | Toujours visible, et aussi dans le menu de l'icône près de l'horloge. |
@@ -47,12 +48,14 @@ L'appli te prévient quand une nouvelle version sort.
 
 | Envoyé par l'appli | Action |
 |---|---|
-| `1` | pompe ON |
+| `1` | pompe, sens moteur A |
 | `0` | pompe OFF |
-| `2` | pompe à l'envers (purge) |
+| `2` | pompe, sens moteur B |
 | `PING` → `PONG` | détection et surveillance de la connexion |
 | `SPD:150` | débit (60–255) |
+| `INV:1` / `INV:0` | sens inversé, gardé en mémoire dans la box (V2.1) : sens du bouton du capot et couleur de la LED |
 
+L'appli choisit elle-même lequel de `1` et `2` envoie la boisson vers la tétine, selon le réglage *Inverser le sens*.
 Liaison série à **115200 bauds**. La box renvoie `PUMP:ON/OFF (source)`, `BTN:1/0` et ses avertissements.
 Câblage : IN1 = D3, IN2 = D4, bouton du capot = D2, LED WS2812B = D6 (via 330 Ω).
 Un ancien firmware (sans `PING`) reste utilisable : il est reconnu à sa bannière, ou en choisissant le port dans *Réglages*.

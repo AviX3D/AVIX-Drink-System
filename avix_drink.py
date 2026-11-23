@@ -47,7 +47,7 @@ except Exception:
     winreg = None
 
 APP_NAME = "AVIX Drink System"
-APP_VERSION = "4.0.0"
+APP_VERSION = "4.1.0"
 GITHUB_REPO = "AviX3D/AVIX-Drink-System"
 BAUD = 115200
 IPC_PORT = 47391                       # canal local "ramène la fenêtre" entre instances
@@ -182,6 +182,7 @@ DEFAULTS = {
     "pump_mode": "one_push",          # one_push | hold
     "dose_ms": 4000,
     "speed": 255,                     # firmware V2 uniquement
+    "reverse": False,                 # sens de la pompe inversé (moteur câblé à l'envers)
     "ml_per_s": 0.0,                  # calibration (0 = non calibré)
     "last_port": None,
     "forced_port": None,              # avancé : port imposé (firmware ancien)
@@ -658,6 +659,7 @@ class App(ctk.CTk):
         self.link_info = {}
         self.pump = "off"              # off | on | rev
         self.pump_src = ""             # app | capot | prime | calib | test
+        self.box_inv = None            # None = inconnu, True = le bouton du capot suit l'inversion, False = firmware trop ancien
         self.pump_t0 = 0.0
         self.purge_ready = True
         self.listening = False
@@ -956,6 +958,17 @@ class App(ctk.CTk):
         self.speed_note = label(si, "", F_SMALL, MUTED)
         self.speed_note.pack(anchor="w")
 
+        d = Card(p)
+        d.pack(fill="x", pady=(0, 14))
+        dd = ctk.CTkFrame(d, fg_color="transparent")
+        dd.pack(fill="x", padx=22, pady=18)
+        label(dd, "Sens de rotation", F_H2).pack(anchor="w", pady=(0, 6))
+        self.rev_var = tk.BooleanVar(value=self.s["reverse"])
+        ctk.CTkSwitch(dd, text="Inverser le sens de la pompe", variable=self.rev_var, command=self._on_reverse,
+                      progress_color=YEL, font=F_BODY, text_color=TEXT).pack(anchor="w")
+        self.rev_note = label(dd, "", F_SMALL, MUTED, wraplength=640)
+        self.rev_note.pack(anchor="w", pady=(8, 0))
+
         m = Card(p)
         m.pack(fill="x")
         mi = ctk.CTkFrame(m, fg_color="transparent")
@@ -1025,7 +1038,8 @@ class App(ctk.CTk):
          "« Tant que j'appuie » : la boisson coule tant que tu gardes le bouton appuyé (20 s maximum)."),
         ("4. Amorce le tuyau",
          "Mets ta canette, place la tétine au-dessus d'un verre, puis garde « Amorcer » appuyé "
-         "jusqu'à ce que la boisson arrive au bout du tuyau.\n\n"
+         "jusqu'à ce que la boisson arrive au bout du tuyau. Si elle repart vers la canette, "
+         "active « Inverser le sens » dans l'onglet Pompe.\n\n"
          "Après la session, « Purger » renvoie la boisson dans la canette avant de ranger. "
          "Pense à rincer les tuyaux à l'eau."),
         ("C'est prêt !",
@@ -1129,7 +1143,7 @@ class App(ctk.CTk):
         if self.autostart_var.get():
             set_autostart(True)                    # met à jour le chemin si l'exe a été déplacé
         ctk.CTkSwitch(i, text="Lancer au démarrage de Windows (réduite près de l'horloge)", variable=self.autostart_var,
-                      command=self._on_autostart, progress_color=YEL, font=F_BODY).pack(anchor="w", pady=4)
+                      command=self._on_autostart, progress_color=YEL, font=F_BODY, text_color=TEXT).pack(anchor="w", pady=4)
         if winreg is None:
             label(i, "(disponible sous Windows uniquement)", F_SMALL, MUTED).pack(anchor="w")
 
@@ -1232,6 +1246,19 @@ class App(ctk.CTk):
         self.speed_slider.configure(state="normal" if v2 else "disabled")
         self.speed_note.configure(text="Réduis si la boisson arrive trop vite." if v2 else
                                   "Nécessite le firmware V2 sur la box (sinon la pompe tourne à fond).")
+        # sens
+        self.rev_var.set(s["reverse"])
+        if not s["reverse"]:
+            note = "À activer si la boisson part vers la canette au lieu de la tétine quand tu amorces."
+        elif self.link_state != "connected":
+            note = "Sens inversé. Appliqué dès que la box est branchée."
+        elif self.box_inv:
+            note = "Sens inversé pour l'appli et le bouton du capot."
+        else:
+            note = ("Sens inversé dans l'appli, mais le firmware de la box est ancien : le bouton du capot tourne "
+                    "encore dans l'ancien sens et le débit reste à fond. Téléverse le firmware V2.1 (dossier firmware).")
+        self.rev_note.configure(text=note, text_color=ORANGE if (s["reverse"] and self.link_state == "connected"
+                                                                  and not self.box_inv) else MUTED)
         # hydratation
         mps = s["ml_per_s"]
         self.calib_lbl.configure(text=(f"Débit calibré : {mps:.1f} ml/s. Les doses s'affichent en ml." if mps > 0 else
@@ -1314,8 +1341,10 @@ class App(ctk.CTk):
                 self.s["last_port"] = info["port"]
                 self.log(f"Box connectée sur {info['port']} (firmware {'V2' if info['fw'] == 'v2' else 'ancien'})", "ok")
                 self.toast("Box connectée ✓", "ok")
+                self.box_inv = None
                 if info["fw"] == "v2":
                     self.link.send(f"SPD:{self.s['speed']}\n")
+                    self._send_inv()
             elif state == "lost":
                 self.log(f"Box déconnectée ({info.get('why')})", "warn")
                 self.toast("Box déconnectée : reconnexion automatique…", "warn")
@@ -1339,12 +1368,26 @@ class App(ctk.CTk):
             st = u[5:].split(" ")[0]
             src = line[line.find("(") + 1:line.find(")")] if "(" in line else ""
             # les échos de nos propres commandes (appli/serie) sont ignorés : l'appli est déjà à jour
-            if st == "ON" and self.pump == "off" and "bouton" in src:
+            if st in ("ON", "REV") and self.pump == "off" and "bouton" in src:
                 self._pump_started("capot")
             elif st == "OFF" and self.pump != "off" and (self.pump_src == "capot" or "securite" in src):
                 self._pump_stopped()
             if "securite" in src:
                 self.log("La box a coupé la pompe (sécurité 20 s)", "warn")
+            return
+        if u.startswith("OK:INV"):
+            if self.box_inv is not True:
+                self.box_inv = True
+                self._refresh_all()
+            return
+        if u.startswith("ERR:INV"):              # firmware V2.0 : seul l'appli inverse
+            if self.box_inv is not False:
+                self.box_inv = False
+                if self.s["reverse"]:
+                    self.log("Firmware sans inversion : le bouton du capot garde l'ancien sens (mets à jour en V2.1)", "warn")
+                self._refresh_all()
+            return
+        if u.startswith("OK:"):
             return
         if u.startswith("BTN:"):
             self.log("Bouton du capot " + ("appuyé" if u.endswith("1") else "relâché"), "info")
@@ -1358,6 +1401,7 @@ class App(ctk.CTk):
                 self._pump_reset_ui()
                 if self.link_info.get("fw") == "v2":
                     self.link.send(f"SPD:{self.s['speed']}\n")
+                    self._send_inv()
             return
         self.log("Box → " + line, "muted")
 
@@ -1413,7 +1457,7 @@ class App(ctk.CTk):
             return False
         if self.pump == "on":
             return self.pump_src == src     # déjà en marche pour une autre raison : on ne la "reprend" pas
-        if self.link.send("1"):
+        if self.link.send(self._fwd_cmd()):
             self._pump_started(src)
             self.log("Pompe : marche" + {"app": "", "prime": " (amorçage)", "calib": " (calibration)"}.get(src, ""), "act")
             return True
@@ -1472,7 +1516,7 @@ class App(ctk.CTk):
             return
         if self.pump == "on":
             self._pump_off()
-        if not self.link.send("2"):
+        if not self.link.send(self._rev_cmd()):
             return
         self.pump = "rev"
         self.pump_src = "purge"
@@ -1490,6 +1534,30 @@ class App(ctk.CTk):
             self._set_ring("off")
             self._purge_cooldown()
         self.later("purge_end", PURGE_MS, end)
+
+    # sens : '1' et '2' restent des sens moteur absolus ; l'appli choisit lequel est « vers la tétine ».
+    # INV:x sert seulement au bouton du capot et à la couleur de la LED (firmware V2.1).
+    def _fwd_cmd(self):
+        return "2" if self.s["reverse"] else "1"
+
+    def _rev_cmd(self):
+        return "1" if self.s["reverse"] else "2"
+
+    def _send_inv(self):
+        if self.link_info.get("fw") == "v2":
+            self.link.send(f"INV:{1 if self.s['reverse'] else 0}\n")
+
+    def _on_reverse(self):
+        on = bool(self.rev_var.get())
+        if on == self.s["reverse"]:
+            return
+        if self.pump != "off":                   # jamais de changement de sens moteur en marche
+            self._pump_off("changement de sens")
+        self.s["reverse"] = on
+        self._send_inv()
+        self.log("Sens de la pompe : " + ("inversé" if on else "normal"), "info")
+        self.toast("Sens inversé ✓" if on else "Sens normal ✓", "ok")
+        self._refresh_all()
 
     def _purge_cooldown(self):
         for b in (self.purge_btn, self.purge_btn_home):
@@ -1883,7 +1951,7 @@ class App(ctk.CTk):
     def copy_diag(self):
         info = [f"{APP_NAME} {APP_VERSION}", f"Python {sys.version.split()[0]} · {sys.platform}",
                 f"Box : {self.link_state} {self.link_info}", f"Déclencheur : {self.s['binding']}",
-                f"Mode : {self.s['pump_mode']} · dose {self.s['dose_ms']} ms · débit {self.s['speed']}",
+                f"Mode : {self.s['pump_mode']} · dose {self.s['dose_ms']} ms · débit {self.s['speed']} · sens {'inversé' if self.s['reverse'] else 'normal'} (capot : {self.box_inv})",
                 f"Ports : {[p.device + ' ' + (p.description or '') for p in serial.tools.list_ports.comports()]}",
                 f"Manettes : {[js.get_name() for js in self.joysticks.values()]}", "", "Journal :"] + self._log_lines[-60:]
         self.clipboard_clear()
